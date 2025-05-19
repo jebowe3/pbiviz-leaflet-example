@@ -76,6 +76,7 @@ export class Visual implements IVisual {
 
         // color function based on static breaks
         const getColor = (value: number, b: number[]): string => {
+            if (value <= b[0]) return "rgba(0, 0, 0, 0)";
             if (value <= b[1]) return "#ffffcc";
             if (value <= b[2]) return "#ffeda0";
             if (value <= b[3]) return "#feb24c";
@@ -103,6 +104,21 @@ export class Visual implements IVisual {
             const val = crashByFIPS[String(f)] || 0;
             const name = fipsToCounty[Number(f)] || "Unknown County";
             layer.bindTooltip(`<strong>${name}</strong><br><strong>Total:</strong> ${val}`);
+            // Add mouseover and mouseout handlers for opacity change
+            layer.on({
+                mouseover: (e: L.LeafletMouseEvent) => {
+                    const targetLayer = e.target;
+                    targetLayer.setStyle({
+                        fillOpacity: 0.75
+                    });
+                },
+                mouseout: (e: L.LeafletMouseEvent) => {
+                    const targetLayer = e.target;
+                    targetLayer.setStyle({
+                        fillOpacity: 0.5
+                    });
+                }
+            });
         };
 
         // create or update counties layer
