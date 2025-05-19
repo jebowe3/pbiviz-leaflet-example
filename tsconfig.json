@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "resolveJsonModule": true,
+        "allowJs": false,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "target": "es2017",
+        "module": "ESNext",
+        "sourceMap": true,
+        "outDir": "./.tmp/build/",
+        "moduleResolution": "node",
+        "declaration": true,
+        "lib": [
+            "es6",
+            "dom"
+        ]
+    },
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.d.ts"
+    ],    
+    "files": [
+        "./src/visual.ts"
+    ]
+}

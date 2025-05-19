@@ -1,0 +1,25 @@
+{
+    "visual": {
+        "name": "pbivizleafletmap",
+        "displayName": "Power BI Leaflet Map",
+        "guid": "pbivizleafletmap",
+        "visualClassName": "Visual",
+        "version": "1.1.6.0",
+        "description": "Custom map visual for Power BI",
+        "supportUrl": "",
+        "gitHubUrl": "https://github.com/jebowe3/pbiviz-leaflet-example"
+    },
+    "apiVersion": "4.7.0.0",
+    "author": {
+        "name": "Jay Bowen",
+        "email": ""
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "externalJS": [],
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": null,
+    "stringResources": []
+}

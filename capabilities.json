@@ -1,0 +1,85 @@
+{
+  "supportsLandingPage": true,
+  "supportsEmptyDataView": true,
+  "privileges": [
+    {
+      "name": "WebAccess",
+      "essential": true,
+      "parameters": [
+        "https://*.microsoft.com",
+        "http://*.microsoft.com",
+        "https://*.openstreetmap.org",
+        "http://*.openstreetmap.org",
+        "https://*.leafletjs.com",
+        "http://*.leafletjs.com",
+        "https://*.osm.org",
+        "http://*.osm.org",
+        "https://localhost",
+        "http://localhost",
+        "https://*.w3.org",
+        "http://*.w3.org"
+      ]
+    }
+  ],
+  "dataRoles": [
+    {
+      "displayName": "Latitude",
+      "name": "y",
+      "kind": "Grouping",
+      "requiredTypes": [{ "numeric": true }]
+    },
+    {
+      "displayName": "Longitude",
+      "name": "x",
+      "kind": "Grouping",
+      "requiredTypes": [{ "numeric": true }]
+    },
+    {
+      "displayName": "Crash Weight",
+      "name": "crashWeight",
+      "kind": "Measure",
+      "requiredTypes": [{ "numeric": true }]
+    },
+    {
+      "displayName": "Persons Per Crash",
+      "name": "personsPerCrash",
+      "kind": "Measure",
+      "requiredTypes": [{ "numeric": true }]
+    },
+    {
+      "displayName": "County FIPS",
+      "name": "countyFIPS",
+      "kind": "Grouping",
+      "requiredTypes": [{ "integer": true }]
+    }
+  ],
+  "dataViewMappings": [
+    {
+      "table": {
+        "rows": {
+          "select": [
+            { "for": { "in": "x" } },
+            { "for": { "in": "y" } },
+            { "for": { "in": "crashWeight" } },
+            { "for": { "in": "personsPerCrash" } },
+            { "for": { "in": "countyFIPS" } }
+          ],
+          "dataReductionAlgorithm": {
+            "top": { "count": 30000 }
+          }
+        }
+      }
+    }
+  ],
+  "objects": {
+    "dataSelector": {
+      "displayName": "Metric Toggle",
+      "properties": {
+        "selectedMetric": {
+          "displayName": "Metric",
+          "type": { "text": true }
+        }
+      }
+    }
+  }
+}
