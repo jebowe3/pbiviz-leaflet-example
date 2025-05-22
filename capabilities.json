@@ -41,12 +41,6 @@
       "requiredTypes": [{ "numeric": true }]
     },
     {
-      "displayName": "Persons Per Crash",
-      "name": "personsPerCrash",
-      "kind": "Measure",
-      "requiredTypes": [{ "numeric": true }]
-    },
-    {
       "displayName": "County FIPS",
       "name": "countyFIPS",
       "kind": "Grouping",
@@ -61,7 +55,6 @@
             { "for": { "in": "x" } },
             { "for": { "in": "y" } },
             { "for": { "in": "crashWeight" } },
-            { "for": { "in": "personsPerCrash" } },
             { "for": { "in": "countyFIPS" } }
           ],
           "dataReductionAlgorithm": {
@@ -70,16 +63,5 @@
         }
       }
     }
-  ],
-  "objects": {
-    "dataSelector": {
-      "displayName": "Metric Toggle",
-      "properties": {
-        "selectedMetric": {
-          "displayName": "Metric",
-          "type": { "text": true }
-        }
-      }
-    }
-  }
+  ]
 }

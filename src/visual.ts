@@ -50,10 +50,10 @@ export class Visual implements IVisual {
         const latIndex = columns.findIndex(c => c.roles?.y);
         const lonIndex = columns.findIndex(c => c.roles?.x);
         const crashIndex = columns.findIndex(c => c.roles?.crashWeight);
-        const personsIndex = columns.findIndex(c => c.roles?.personsPerCrash);
+        //const personsIndex = columns.findIndex(c => c.roles?.personsPerCrash);
         const fipsIndex = columns.findIndex(c => c.roles?.countyFIPS);
 
-        const activeMetricIndex = this.settings.selectedMetric === "crashes" ? crashIndex : personsIndex;
+        //const activeMetricIndex = this.settings.selectedMetric === "crashes" ? crashIndex : personsIndex;
 
         if (rows.length === 0 || latIndex === -1 || lonIndex === -1) {
             console.warn("❌ Required data is missing or not mapped correctly.");
@@ -64,7 +64,7 @@ export class Visual implements IVisual {
         const crashByFIPS: Record<string, number> = {};
         for (const row of rows) {
             const f = row[fipsIndex];
-            const v = +row[activeMetricIndex] || 0;
+            const v = +row[crashIndex] || 0;
             if (f != null) {
                 const key = String(f);
                 crashByFIPS[key] = (crashByFIPS[key] || 0) + v;
@@ -148,7 +148,7 @@ export class Visual implements IVisual {
             if (isNaN(lat) || isNaN(lon)) continue;
 
             const f = row[fipsIndex];
-            const val = +row[activeMetricIndex] || 0;
+            const val = +row[crashIndex] || 0;
             let name = "Unknown County";
             if (f != null && !isNaN(Number(f))) {
                 name = fipsToCounty[Number(f)] || name;
