@@ -17,6 +17,7 @@ import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 
 import type { Feature } from 'geojson';
 import type { PathOptions, Layer } from 'leaflet';
+import isEqual from 'fast-deep-equal';
 
 import fipsToCounty from "./data/fipsToCounty";
 import counties from "./data/nc_counties"; // GeoJSON
@@ -34,6 +35,8 @@ export class Visual implements IVisual {
         selectedMetric: "crashes" as "crashes" | "persons"
     };
     private debouncedUpdate: (options: VisualUpdateOptions) => void;
+    //private previousDataViewHash: string | null = null;
+    private previousTableData: powerbi.DataViewTable | null = null;
 
     constructor(options?: VisualConstructorOptions) {
         if (!options) {
@@ -74,7 +77,7 @@ export class Visual implements IVisual {
         }, { collapsed: false }).addTo(this.map);
 
         // Debounced update method
-        this.debouncedUpdate = debounce(this.performUpdate.bind(this), 200);
+        this.debouncedUpdate = debounce(this.performUpdate.bind(this), 100);
     }
 
     public update(options: VisualUpdateOptions): void {
@@ -82,15 +85,26 @@ export class Visual implements IVisual {
     }
 
     private performUpdate(options: VisualUpdateOptions): void {
-        this.resizeMap(options);
         const dataView = options.dataViews?.[0];
-        const objects = dataView?.metadata?.objects;
+        if (!dataView?.table) return;
+
+        if (this.previousTableData && isEqual(this.previousTableData, dataView.table)) return;
+        this.previousTableData = dataView.table;
+/*
+        // Efficiently check for data changes (caching)
+        const newHash = JSON.stringify(dataView.table);
+        if (this.previousDataViewHash === newHash) return; // Data hasn't changed; skip update.
+        this.previousDataViewHash = newHash;
+*/
+        this.resizeMap(options);
+
+        const objects = dataView.metadata.objects;
         this.settings.selectedMetric =
             (objects?.dataSelector?.selectedMetric as "crashes" | "persons") ||
             "crashes";
 
-        const rows = dataView?.table?.rows || [];
-        const columns = dataView?.table?.columns || [];
+        const rows = dataView.table.rows || [];
+        const columns = dataView.table.columns || [];
 
         const latIndex = columns.findIndex(c => c.roles?.y);
         const lonIndex = columns.findIndex(c => c.roles?.x);
@@ -114,7 +128,7 @@ export class Visual implements IVisual {
             val <= breaks[3] ? "#feb24c" : val <= breaks[4] ? "#fd8d3c" : val <= breaks[5] ? "#f03b20" :
             val <= breaks[6] ? "#bd0026" : "#800026";
 
-        // Optimized tooltip and style updates
+        // Optimized tooltip and style updates (unchanged)
         Object.entries(this.countyLayers).forEach(([fips, layer]) => {
             const val = crashByFIPS[fips] || 0;
             const tooltipContent = `<strong>${fipsToCounty[Number(fips)] || 'Unknown County'}</strong><br/><strong>Total:</strong> ${val}`;
@@ -124,7 +138,7 @@ export class Visual implements IVisual {
             layer.setStyle({ fillColor: getColor(val) });
         });
 
-        // Efficiently rebuild marker clusters
+        // Efficiently rebuild marker clusters (unchanged)
         this.markerClusters.clearLayers();
         rows.forEach(row => {
             const lat = parseFloat(String(row[latIndex])), lon = parseFloat(String(row[lonIndex]));
