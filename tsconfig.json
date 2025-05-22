@@ -1,25 +1,39 @@
 {
-    "compilerOptions": {
-        "resolveJsonModule": true,
-        "allowJs": false,
-        "emitDecoratorMetadata": true,
-        "experimentalDecorators": true,
-        "target": "es2017",
-        "module": "ESNext",
-        "sourceMap": true,
-        "outDir": "./.tmp/build/",
-        "moduleResolution": "node",
-        "declaration": true,
-        "lib": [
-            "es6",
-            "dom"
-        ]
-    },
-    "include": [
-        "src/**/*.ts",
-        "src/**/*.d.ts"
-    ],    
-    "files": [
-        "./src/visual.ts"
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "es2017",
+    "module": "ESNext",
+    "sourceMap": true,
+    "outDir": "./.tmp/build/",
+    "moduleResolution": "node",
+    "declaration": true,
+    "lib": [
+      "es2017",
+      "dom"
+    ],
+    "types": [
+      "leaflet",
+      "leaflet.markercluster"
     ]
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    ".tmp"
+  ],
+  "files": [
+    "./src/visual.ts"
+  ]
 }

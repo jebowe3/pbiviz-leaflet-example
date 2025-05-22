@@ -63,5 +63,20 @@
         }
       }
     }
-  ]
+  ],
+  "objects": {
+    "dataSelector": {
+      "displayName": "Metric to map",
+      "properties": {
+        "selectedMetric": {
+          "type": {
+            "enumeration": [
+              { "value": "crashes", "displayName": "Crashes" },
+              { "value": "persons", "displayName": "Persons" }
+            ]
+          }
+        }
+      }
+    }
+  }  
 }

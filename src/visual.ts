@@ -1,5 +1,11 @@
 "use strict";
+/// <reference types="leaflet.markercluster" />
+import * as L from "leaflet";
+import debounce from 'lodash.debounce';
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "./../style/visual.less";
 import powerbi from "powerbi-visuals-api";
 import EnumerateVisualObjectInstancesOptions = powerbi.EnumerateVisualObjectInstancesOptions;
@@ -8,41 +14,80 @@ import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructor
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
-import * as L from "leaflet";
+
+import type { Feature } from 'geojson';
+import type { PathOptions, Layer } from 'leaflet';
 
 import fipsToCounty from "./data/fipsToCounty";
 import counties from "./data/nc_counties"; // GeoJSON
 
 export class Visual implements IVisual {
-    private mapContainer: HTMLElement;
-    private map: L.Map;
-    private target: HTMLElement;
-    private host: IVisualHost;
-    private layerControl: L.Control.Layers;
-    private dataPointsLayer: L.LayerGroup;
-    private countiesLayer: L.GeoJSON | null = null;
+    private mapContainer!: HTMLElement;
+    private map!: L.Map;
+    private target!: HTMLElement;
+    private host!: IVisualHost;
+    private layerControl!: L.Control.Layers;
+    private markerClusters!: L.MarkerClusterGroup;
+    private countiesLayer!: L.GeoJSON;
+    private countyLayers: Record<string, L.Path> = {};
     private settings = {
         selectedMetric: "crashes" as "crashes" | "persons"
     };
+    private debouncedUpdate: (options: VisualUpdateOptions) => void;
 
-    constructor(options: VisualConstructorOptions) {
+    constructor(options?: VisualConstructorOptions) {
+        if (!options) {
+            throw new Error("VisualConstructorOptions must be provided by PBIViz");
+        }
         this.target = options.element;
         this.host = options.host;
+
         this.createMapContainer();
         this.initMap();
 
-        // initialize points layer on canvas overlay
-        this.dataPointsLayer = L.layerGroup().addTo(this.map);
+        // Initialize cluster group
+        this.markerClusters = L.markerClusterGroup({
+            chunkedLoading: true,
+            chunkInterval: 80,
+            chunkDelay: 15,
+            removeOutsideVisibleBounds: true,
+            disableClusteringAtZoom: 14,
+            maxClusterRadius: 40,
+            showCoverageOnHover: false
+        }).addTo(this.map);
 
-        // setup layer control; counties overlay added in first update
-        this.layerControl = L.control.layers(null, { "Incidents": this.dataPointsLayer }, { collapsed: false }).addTo(this.map);
+        // Initialize counties layer only once
+        this.countiesLayer = L.geoJSON(counties, {
+            style: { interactive: true, weight: 1, color: "white", dashArray: "3", fillOpacity: 0.5 },
+            onEachFeature: (feature, layer) => {
+                const fips = feature.properties?.FIPS;
+                if (fips) {
+                    this.countyLayers[fips] = layer as L.Path;
+                }
+            }
+        }).addTo(this.map);
+
+        // Layer control
+        this.layerControl = L.control.layers(undefined, {
+            "Incident Clusters": this.markerClusters,
+            "Counties": this.countiesLayer
+        }, { collapsed: false }).addTo(this.map);
+
+        // Debounced update method
+        this.debouncedUpdate = debounce(this.performUpdate.bind(this), 200);
     }
 
     public update(options: VisualUpdateOptions): void {
+        this.debouncedUpdate(options);
+    }
+
+    private performUpdate(options: VisualUpdateOptions): void {
         this.resizeMap(options);
         const dataView = options.dataViews?.[0];
         const objects = dataView?.metadata?.objects;
-        this.settings.selectedMetric = (objects?.dataSelector?.selectedMetric as "crashes" | "persons") || "crashes";
+        this.settings.selectedMetric =
+            (objects?.dataSelector?.selectedMetric as "crashes" | "persons") ||
+            "crashes";
 
         const rows = dataView?.table?.rows || [];
         const columns = dataView?.table?.columns || [];
@@ -50,138 +95,63 @@ export class Visual implements IVisual {
         const latIndex = columns.findIndex(c => c.roles?.y);
         const lonIndex = columns.findIndex(c => c.roles?.x);
         const crashIndex = columns.findIndex(c => c.roles?.crashWeight);
-        //const personsIndex = columns.findIndex(c => c.roles?.personsPerCrash);
         const fipsIndex = columns.findIndex(c => c.roles?.countyFIPS);
 
-        //const activeMetricIndex = this.settings.selectedMetric === "crashes" ? crashIndex : personsIndex;
+        if (rows.length === 0 || latIndex === -1 || lonIndex === -1) return;
 
-        if (rows.length === 0 || latIndex === -1 || lonIndex === -1) {
-            console.warn("❌ Required data is missing or not mapped correctly.");
-            return;
-        }
-
-        // compute per-county totals
+        // Compute totals per county
         const crashByFIPS: Record<string, number> = {};
-        for (const row of rows) {
+        rows.forEach(row => {
             const f = row[fipsIndex];
             const v = +row[crashIndex] || 0;
-            if (f != null) {
-                const key = String(f);
-                crashByFIPS[key] = (crashByFIPS[key] || 0) + v;
-            }
-        }
+            if (f != null) crashByFIPS[String(f)] = (crashByFIPS[String(f)] || 0) + v;
+        });
 
-        // hard-coded breaks for seven classes
+        // Choropleth styling helpers
         const breaks = [0, 50, 100, 500, 1000, 5000, 10000];
+        const getColor = (val: number): string =>
+            val <= breaks[0] ? "rgba(0,0,0,0)" : val <= breaks[1] ? "#ffffcc" : val <= breaks[2] ? "#ffeda0" :
+            val <= breaks[3] ? "#feb24c" : val <= breaks[4] ? "#fd8d3c" : val <= breaks[5] ? "#f03b20" :
+            val <= breaks[6] ? "#bd0026" : "#800026";
 
-        // color function based on static breaks
-        const getColor = (value: number, b: number[]): string => {
-            if (value <= b[0]) return "rgba(0, 0, 0, 0)";
-            if (value <= b[1]) return "#ffffcc";
-            if (value <= b[2]) return "#ffeda0";
-            if (value <= b[3]) return "#feb24c";
-            if (value <= b[4]) return "#fd8d3c";
-            if (value <= b[5]) return "#f03b20";
-            if (value <= b[6]) return "#bd0026";
-            return "#800026";
-        };
-
-        // style and tooltip for counties
-        const styleCounty = (feature: any) => {
-            const f = feature.properties?.FIPS;
-            const val = crashByFIPS[String(f)] || 0;
-            return {
-                interactive: true,
-                fillColor: getColor(val, breaks),
-                weight: 1,
-                color: "white",
-                dashArray: "3",
-                fillOpacity: 0.5
-            };
-        };
-        const bindCountyTooltip = (feature: any, layer: L.Layer) => {
-            const f = feature.properties?.FIPS;
-            const val = crashByFIPS[String(f)] || 0;
-            const name = fipsToCounty[Number(f)] || "Unknown County";
-            layer.bindTooltip(`<strong>${name}</strong><br><strong>Total:</strong> ${val}`);
-            // Add mouseover and mouseout handlers for opacity change
-            layer.on({
-                mouseover: (e: L.LeafletMouseEvent) => {
-                    const targetLayer = e.target;
-                    targetLayer.setStyle({
-                        fillOpacity: 0.75
-                    });
-                },
-                mouseout: (e: L.LeafletMouseEvent) => {
-                    const targetLayer = e.target;
-                    targetLayer.setStyle({
-                        fillOpacity: 0.5
-                    });
-                }
-            });
-        };
-
-        // create or update counties layer
-        if (!this.countiesLayer) {
-            this.countiesLayer = L.geoJSON(counties, {
-                style: styleCounty,
-                onEachFeature: bindCountyTooltip
-            }).addTo(this.map);
-            this.layerControl.addOverlay(this.countiesLayer, "Counties");
-        } else {
-            this.countiesLayer.setStyle(styleCounty);
-            this.countiesLayer.eachLayer((layer: any) => {
-                const feature = layer.feature;
-                const f = feature.properties?.FIPS;
-                const val = crashByFIPS[String(f)] || 0;
-                const name = fipsToCounty[Number(f)] || "Unknown County";
-                layer.unbindTooltip();
-                layer.bindTooltip(`<strong>${name}</strong><br><strong>Total:</strong> ${val}`);
-            });
-        }
-
-        // rebuild incident markers
-        this.dataPointsLayer.clearLayers();
-        for (const row of rows) {
-            const lat = parseFloat(String(row[latIndex]));
-            const lon = parseFloat(String(row[lonIndex]));
-            if (isNaN(lat) || isNaN(lon)) continue;
-
-            const f = row[fipsIndex];
-            const val = +row[crashIndex] || 0;
-            let name = "Unknown County";
-            if (f != null && !isNaN(Number(f))) {
-                name = fipsToCounty[Number(f)] || name;
+        // Optimized tooltip and style updates
+        Object.entries(this.countyLayers).forEach(([fips, layer]) => {
+            const val = crashByFIPS[fips] || 0;
+            const tooltipContent = `<strong>${fipsToCounty[Number(fips)] || 'Unknown County'}</strong><br/><strong>Total:</strong> ${val}`;
+            if (layer.getTooltip()?.getContent() !== tooltipContent) {
+                layer.unbindTooltip().bindTooltip(tooltipContent);
             }
+            layer.setStyle({ fillColor: getColor(val) });
+        });
 
+        // Efficiently rebuild marker clusters
+        this.markerClusters.clearLayers();
+        rows.forEach(row => {
+            const lat = parseFloat(String(row[latIndex])), lon = parseFloat(String(row[lonIndex]));
+            if (isNaN(lat) || isNaN(lon)) return;
+            const v = +row[crashIndex] || 0, f = String(row[fipsIndex] ?? '');
             const marker = L.circleMarker([lat, lon], {
-                radius: Math.max(5, Math.sqrt(val) * 2),
+                radius: Math.max(3, Math.sqrt(v)),
                 color: "#3366cc",
                 fillColor: "#66ccff",
                 fillOpacity: 0.6,
-                weight: 1,
-                interactive: true
-            });
-            marker.bindTooltip(`<strong>Total:</strong> ${val}<br><strong>County:</strong> ${name}`);
-            marker.on("mouseover", () => marker.setStyle({ color: "#ffff00", fillColor: "#ffff99", weight: 2 }));
-            marker.on("mouseout", () => marker.setStyle({ color: "#3366cc", fillColor: "#66ccff", weight: 1 }));
-            this.dataPointsLayer.addLayer(marker);
-        }
+                weight: 1
+            }).bindTooltip(`<strong>Total:</strong> ${v}<br/><strong>County:</strong> ${fipsToCounty[Number(f)] || 'Unknown County'}`);
+            this.markerClusters.addLayer(marker);
+        });
+
+        // Keep choropleth on top
+        this.countiesLayer.bringToFront();
     }
 
-    public destroy(): void {
-        this.map?.remove();
-    }
+    public destroy(): void { this.map?.remove(); }
 
-    public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstanceEnumeration {
-        if (options.objectName === "dataSelector") {
-            return [{
-                objectName: "dataSelector",
-                properties: { selectedMetric: this.settings.selectedMetric },
-                selector: null
-            }];
-        }
-        return [];
+    private resizeMap(opts: VisualUpdateOptions): void {
+        requestAnimationFrame(() => {
+            this.mapContainer.style.width = `${opts.viewport.width}px`;
+            this.mapContainer.style.height = `${opts.viewport.height}px`;
+            this.map.invalidateSize();
+        });
     }
 
     private createMapContainer(): void {
@@ -192,21 +162,16 @@ export class Visual implements IVisual {
         div.style.width = "100%";
         div.style.height = "100%";
         this.mapContainer = div;
-        this.target.appendChild(div);
+        this.target.appendChild(div);        
     }
 
     private initMap(): void {
-        this.map = L.map("mapid", { preferCanvas: true }).setView([35.5398, -79.2417], 7);
+        this.map = L.map("mapid", { preferCanvas: true })
+            .setView([35.54, -79.24], 7);
+            
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: '© OpenStreetMap contributors'
         }).addTo(this.map);
     }
 
-    private resizeMap(options: VisualUpdateOptions): void {
-        this.mapContainer.style.width = options.viewport.width + "px";
-        this.mapContainer.style.height = options.viewport.height + "px";
-        this.map.invalidateSize();
-    }
 }
-
-console.log("Visual loaded and running.");
