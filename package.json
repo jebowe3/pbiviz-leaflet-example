@@ -14,12 +14,14 @@
   "dependencies": {
     "@babel/runtime": "^7.22.0",
     "@types/lodash.debounce": "^4.0.9",
+    "@workingfamilies/prune-cluster": "^3.1.2",
     "core-js": "^3.30.0",
     "d3": "^7.9.0",
+    "esri-leaflet": "^3.0.16",
     "fast-deep-equal": "^3.1.3",
     "leaflet": "^1.9.4",
-    "leaflet.markercluster": "^1.5.3",
     "lodash.debounce": "^4.0.8",
+    "powerbi-models": "^1.15.2",
     "powerbi-visuals-api": "^5.0.0",
     "powerbi-visuals-utils-dataviewutils": "^6.1.0",
     "simple-statistics": "^7.8.8"
@@ -27,10 +29,10 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@types/d3": "^7.4.1",
+    "@types/esri-leaflet": "^3.0.3",
     "@types/geojson": "^7946.0.16",
     "@types/jest": "^29.5.0",
     "@types/leaflet": "^1.9.4",
-    "@types/leaflet.markercluster": "^1.5.5",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^9.27.0",

@@ -22,8 +22,7 @@
       "dom"
     ],
     "types": [
-      "leaflet",
-      "leaflet.markercluster"
+      "leaflet"
     ]
   },
   "include": [

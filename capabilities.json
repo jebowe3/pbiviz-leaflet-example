@@ -17,7 +17,8 @@
         "https://localhost",
         "http://localhost",
         "https://*.w3.org",
-        "http://*.w3.org"
+        "http://*.w3.org",
+        "https://ags.coverlab.org"
       ]
     }
   ],
@@ -26,25 +27,52 @@
       "displayName": "Latitude",
       "name": "y",
       "kind": "Grouping",
-      "requiredTypes": [{ "numeric": true }]
+      "requiredTypes": [
+        {
+          "numeric": true
+        }
+      ]
     },
     {
       "displayName": "Longitude",
       "name": "x",
       "kind": "Grouping",
-      "requiredTypes": [{ "numeric": true }]
+      "requiredTypes": [
+        {
+          "numeric": true
+        }
+      ]
     },
     {
-      "displayName": "Crash Weight",
+      "displayName": "Switch Measure",
       "name": "crashWeight",
       "kind": "Measure",
-      "requiredTypes": [{ "numeric": true }]
+      "requiredTypes": [
+        {
+          "numeric": true
+        }
+      ]
     },
     {
       "displayName": "County FIPS",
       "name": "countyFIPS",
       "kind": "Grouping",
-      "requiredTypes": [{ "integer": true }]
+      "requiredTypes": [
+        {
+          "integer": true
+        }
+      ]
+    },
+    {
+      "displayName": "Interstate",
+      "name": "interstate",
+      "kind": "Grouping",
+      "requiredTypes": [
+        {
+          "text": true
+        }
+      ],
+      "description": "Optional filter for FeatureLayer rendering"
     }
   ],
   "dataViewMappings": [
@@ -52,31 +80,69 @@
       "table": {
         "rows": {
           "select": [
-            { "for": { "in": "x" } },
-            { "for": { "in": "y" } },
-            { "for": { "in": "crashWeight" } },
-            { "for": { "in": "countyFIPS" } }
+            {
+              "for": {
+                "in": "x"
+              }
+            },
+            {
+              "for": {
+                "in": "y"
+              }
+            },
+            {
+              "for": {
+                "in": "crashWeight"
+              }
+            },
+            {
+              "for": {
+                "in": "countyFIPS"
+              }
+            },
+            {
+              "for": {
+                "in": "interstate"
+              }
+            }
           ],
           "dataReductionAlgorithm": {
-            "top": { "count": 30000 }
+            "top": {
+              "count": 30000
+            }
           }
         }
       }
     }
   ],
   "objects": {
+    "general": {
+      "properties": {
+        "filter": {
+          "type": {
+            "filter": true
+          }
+        }
+      }
+    },
     "dataSelector": {
       "displayName": "Metric to map",
       "properties": {
         "selectedMetric": {
           "type": {
             "enumeration": [
-              { "value": "crashes", "displayName": "Crashes" },
-              { "value": "persons", "displayName": "Persons" }
+              {
+                "value": "crashes",
+                "displayName": "Crashes"
+              },
+              {
+                "value": "persons",
+                "displayName": "Persons"
+              }
             ]
           }
         }
       }
     }
-  }  
+  }
 }
